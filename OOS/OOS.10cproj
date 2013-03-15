@@ -13,5 +13,7 @@
     <file path="main.dasm">
       <property name="providerFileTypeName">DevKit 10c Assembly File</property>
     </file>
+    <file path="pgrm_help.dasm" />
+    <file path="pgrm_floppy.dasm" />
   </files>
 </project>
