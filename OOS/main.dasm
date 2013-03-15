@@ -1,0 +1,398 @@
+; --------------------------------------------
+; Project: Otium OS
+; Title:   main.dasm
+; Author:  Joshua (HellFly)
+; Created: 2013-03-08
+; Date:    2013-03-12
+; Version: 0.0.2 a
+; --------------------------------------------
+
+:main
+	HWN I
+	JSR map_devices
+	
+	JSR display_init
+	
+	SET A, TEXT_STARTUP_0
+	JSR add_line
+	SET A, TEXT_STARTUP_1
+	JSR add_line
+	SET A, TEXT_STARTUP_2
+	JSR add_line
+	SET A, TEXT_STARTUP_3
+	JSR add_line
+	SET A, TEXT_STARTUP_4
+	JSR add_line
+	
+	SET A, 0x0
+	SET B, 0x0
+	SET C, 0x0
+	SET I, 0x0
+	SET J, 0x0
+	SET X, 0x0
+	SET Y, 0x0
+	SET Z, 0x0
+	
+	:main_loop
+		JSR poll_keyboard
+		SET A, [MEM_KEYBOARD]
+		SET B, [DRAW_LINE]
+		IFN [A], 0x0
+			SET PC, main_loop_draw
+		IFE [A], 0x0
+			SET PC, main_loop_clear
+		
+		:main_loop_draw
+			JSR draw_text
+			SET PC, main_loop
+		:main_loop_clear
+			JSR clear_line
+			SET PC, main_loop
+		
+		SET PC, main_loop
+
+:poll_floppy
+	SET X, 0x0
+	IFE [FLOPPY], 0xFFFF ; No floppy drive
+		SET PC, POP
+	SET X, 0x1
+	; Do floppy stuff here
+	SET PC, POP
+
+:poll_keyboard
+	SET A, 1
+	HWI [KEYBOARD]
+	SET B, C
+	BOR B, 0xF000
+	IFE C, 0
+		SET PC, POP
+	IFE C, 0x11					; The enter key
+		SET PC, poll_keyboard_enter
+	IFE C, 0x10					; The backspace key
+		SET PC, poll_keyboard_backspace
+	SET I, [MEM_KEYBOARD]
+	SUB I, 1
+	:poll_keyboard_add
+		ADD I, 1
+		IFN [I], 0x0
+			SET PC, poll_keyboard_add
+		SET J, [MEM_KEYBOARD]
+		ADD J, 0x20
+		IFL I, J
+			SET [I], C
+		SET PC, POP
+	:poll_keyboard_enter
+		SET I, [MEM_KEYBOARD]
+		SET J, [MEM_DISPLAY]
+		ADD J, 0x160
+		IFE [DRAW_LINE], J
+			JSR display_scroll
+		IFL [DRAW_LINE], J
+			ADD [DRAW_LINE], 0x20
+		
+		JSR check_cmd
+		
+		JSR keyboardbuffer_clear
+		
+		SET PC, POP
+	:poll_keyboard_backspace
+		SET X, [MEM_KEYBOARD]
+		:poll_keyboard_backspace_loop
+			ADD X, 0x1
+			IFN [X], 0x0
+				SET PC, poll_keyboard_backspace_loop
+		SUB X, 1
+		SET [X], 0x0
+		SET A, [DRAW_LINE]
+		JSR clear_line
+		SET A, [DRAW_LINE]
+		SET B, [MEM_KEYBOARD]
+		JSR draw_text
+		SET PC, POP
+
+:check_cmd
+	SET X, [MEM_KEYBOARD]
+	SET Y, CMD_HELP
+	JSR stdlib_strcmp
+	IFE X, 0x0
+		SET PC, pgrm_help
+	SET X, [MEM_KEYBOARD]
+	SET Y, CMD_FLOPPY
+	JSR stdlib_strcmp
+	IFE X, 0x0
+		SET PC, pgrm_floppy
+	SET PC, POP
+
+:keyboardbuffer_clear
+	SET I, [MEM_KEYBOARD]
+	:keyboardbuffer_clear_loop
+		SET [I], 0x0
+		ADD I, 0x1
+		IFN [I], 0x0
+			SET PC, keyboardbuffer_clear_loop
+	SET PC, POP
+
+
+; --FUNCTION-----------------------------------
+; stdlib_strcmp
+; --ARGS--------------------------------------
+; X - String pointer #1
+; Y - String pointer #2
+; --RETURN------------------------------------
+; X - Result
+; Y - Strlen
+; --------------------------------------------
+:stdlib_strcmp
+	SET I, 0
+	:stdlib_strcmp_Loop1
+		IFE [X], 0
+			IFE [Y], 0
+				SET PC, stdlib_strcmp_end
+		IFN [X], [Y]
+			SET PC, stdlib_strcmp_fail
+		ADD X, 1
+		ADD Y, 1
+		SET PC, stdlib_strcmp_Loop1
+	:stdlib_strcmp_end
+		SET X, 0
+		SET PC, POP
+	:stdlib_strcmp_fail
+		SET X, 1
+		SET Y, 0
+		SET PC, POP
+
+:map_devices
+	SUB I, 1
+	HWQ I
+	IFE B, 0x30CF
+		IFE A, 0x7406
+			SET [KEYBOARD], I	; It's the Keyboard
+	IFE B, 0x12D0
+		IFE A, 0xB402
+			SET [CLOCK], I		; It's the Clock
+	IFE B, 0x4FD5
+		IFE A, 0x24C5
+			SET [FLOPPY], I		; It's the M35FD 3.5"
+	IFE B, 0x7349
+		IFE A, 0xF615
+			SET [DISPLAY], I	; It's the LEM1802
+	IFE B, 0x42BA
+		IFE A, 0xBF3C
+			SET [VECTOR], I		; It's the SPED-3
+	IFN I, 0
+		SET PC, map_devices
+	SET PC, POP
+
+:display_init
+	SET A, 0
+	SET B, [MEM_DISPLAY]
+	HWI [DISPLAY]
+	SET PC, POP
+
+; Scrolls the display by 1 line
+:display_scroll
+	SET A, [MEM_DISPLAY]
+	SET B, A
+	SET C, A
+	ADD B, 0x20
+	ADD C, 0x160
+	:display_scroll_loop
+		IFG A, C
+			SET PC, display_scroll_clear
+		SET [A], [B]
+		ADD A, 0x1
+		ADD B, 0x1
+		SET PC, display_scroll_loop
+	:display_scroll_clear
+		SET A, [MEM_DISPLAY]
+		ADD A, 0x160
+		JSR clear_line
+		SET PC, POP
+
+; Draws text A at pos B
+:draw_text
+	IFE [A], 0
+		SET PC, POP
+	SET C, [A]
+	BOR C, 0xF000
+	SET [B], C
+	ADD A, 1
+	ADD B, 1
+	SET PC, draw_text
+
+; Adds a line with text at address A
+:add_line
+	SET I, [MEM_KEYBOARD]
+	SET J, [MEM_DISPLAY]
+	ADD J, 0x160
+	IFE [J], 0x0
+		SET PC, add_line_cont
+	IFE [DRAW_LINE], J
+		JSR display_scroll
+	IFL [DRAW_LINE], J
+		ADD [DRAW_LINE], 0x20
+	
+	:add_line_cont
+		SET B, [DRAW_LINE]
+		JSR draw_text
+	
+	SET I, [MEM_KEYBOARD]
+	SET J, [MEM_DISPLAY]
+	ADD J, 0x160
+	IFE [DRAW_LINE], J
+		JSR display_scroll
+	IFL [DRAW_LINE], J
+		ADD [DRAW_LINE], 0x20
+		
+	SET PC, POP
+
+; Clears the line starting at A
+:clear_line
+	SUB A, 1
+	SET B, A
+	ADD B, 0x20
+	:clear_line_loop
+		ADD A, 1
+		SET [A], 0
+		IFE A, B
+			SET PC, POP
+		SET PC, clear_line_loop
+
+:clear_display
+	SET A, [MEM_DISPLAY]
+	SET B, A
+	ADD B, 0x180
+	SUB B, 0x1
+	:clear_display_loop
+		IFG A, B
+			SET PC, clear_display_cont
+		SET [A], 0x0
+		ADD A, 0x1
+		SET PC, clear_display_loop
+	:clear_display_cont
+	SET [DRAW_LINE], [MEM_DISPLAY]
+	SET PC, POP
+
+:crash
+	SET PC, crash
+
+
+
+:MEM_DISPLAY				; MEM_DISPLAY will hold the start of the display's memory address
+	DAT 0x8000
+:MEM_KEYBOARD				; The start of the keyboard buffer
+	DAT 0x9000
+:DRAW_LINE					; The position at which is being typed
+	DAT 0x8000
+
+:KEYBOARD
+	DAT 0xFFFF				; KEYBOARD will hold the Keyboard's index
+:CLOCK
+	DAT 0xFFFF				; CLOCK will hold the Clock's index
+:FLOPPY
+	DAT 0xFFFF				; FLOPPY will hold the M35FD's index
+:DISPLAY
+	DAT 0xFFFF				; DISPLAY will hold the LEM1802's index
+:VECTOR
+	DAT 0xFFFF				; VECTOR will hold the SPED-3's index
+
+:CMD_HELP
+	DAT "help", 0x0
+
+:CMD_FLOPPY
+	DAT "floppy", 0x0
+
+:CMD_HELP_EXEC
+	JSR pgrm_help
+	SET PC, POP
+
+:CMD_FLOPPY_EXEC
+	JSR pgrm_floppy
+	SET PC, POP
+
+:TEXT_STARTUP_0
+	DAT "--------------------------------", 0x0
+:TEXT_STARTUP_1
+	DAT "|      Official Otium OS       |", 0x0
+:TEXT_STARTUP_2
+	DAT "|         By: HellFly          |", 0x0
+:TEXT_STARTUP_3
+    DAT "|          v 0.0.2 a           |", 0x0
+:TEXT_STARTUP_4
+	DAT "--------------------------------", 0x0
+
+
+
+
+
+
+; --------------------------------------------
+; Project: Otium OS
+; Title:   pgrm_help.dasm
+; Author:  Joshua (HellFly)
+; Created: 2013-03-12
+; Date:    2013-03-12
+; Version: 0.1 a
+; --------------------------------------------
+
+:pgrm_help
+	JSR clear_display
+	SET A, PGRM_HELP_TEXT_0
+	JSR add_line
+	SET A, PGRM_HELP_TEXT_1
+	JSR add_line
+	SET A, PGRM_HELP_TEXT_2
+	JSR add_line
+	SET A, PGRM_HELP_TEXT_3
+	JSR add_line
+	SET PC, POP
+	
+:PGRM_HELP_TEXT_0
+	DAT "--------------------------------", 0x0
+:PGRM_HELP_TEXT_1
+	DAT "|            HELP              |", 0x0
+:PGRM_HELP_TEXT_2
+	DAT "--------------------------------", 0x0
+:PGRM_HELP_TEXT_3
+	DAT "help, floppy", 0x0
+
+
+
+
+
+; --------------------------------------------
+; Project: Otium OS
+; Title:   pgrm_floppy.dasm
+; Author:  Joshua (HellFly)
+; Created: 2013-03-12
+; Date:    2013-03-12
+; Version: 0.1 a
+; --------------------------------------------
+
+:pgrm_floppy
+	SET A, PGRM_FLOPPY_TEXT_0
+	JSR add_line
+	
+	JSR poll_floppy
+	
+	SET A, PGRM_FLOPPY_STATUS_NOT_INSERTED
+	IFE X, 0x1
+		SET A, PGRM_FLOPPY_STATUS_READY
+	IFE [FLOPPY], 0xFFFF
+		SET A, PGRM_FLOPPY_STATUS_NODRIVE
+	
+	JSR add_line
+	
+	SET PC, POP
+
+:PGRM_FLOPPY_TEXT_0
+	DAT "Floppy status:", 0x0
+
+:PGRM_FLOPPY_STATUS_NODRIVE
+	DAT "No floppy drive detected.", 0x0
+
+:PGRM_FLOPPY_STATUS_NOT_INSERTED
+	DAT "No floppy inserted.", 0x0
+
+:PGRM_FLOPPY_STATUS_READY
+	DAT "Floppy is ready.", 0x0
