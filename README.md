@@ -6,6 +6,8 @@
 
 ***
 ## Running the project ##
-This is a 0x10c-devkit project. In order to open the project, compile and run, you'll need to download 0x10c-devkit from [http://0x10c-devkit.com](http://0x10c-devkit.com)
+This is a project for the dcputoolchain. You can get it at [http://dcputoolcha.in/](http://dcputoolcha.in/)
 
-To open it simply open OOS.10csln
+Compile it with this: dtasm main.dasm -o OOS.bin --binary
+
+Run it with this: dtemu OOS.bin
