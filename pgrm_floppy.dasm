@@ -3,34 +3,34 @@
 ; Title:   pgrm_floppy.dasm
 ; Author:  Joshua (HellFly)
 ; Created: 2013-03-12
-; Date:    2013-03-12
 ; Version: 0.1 a
 ; --------------------------------------------
 
 :pgrm_floppy
+	;JSR clear_display
 	SET A, PGRM_FLOPPY_TEXT_0
 	JSR add_line
 	
 	JSR poll_floppy
 	
-	SET A, PGRM_FLOPPY_STATUS_NOT_INSERTED
-	IFE X, 0x1
+	SET A, PGRM_FLOPPY_STATUS_NODRIVE
+	IFE X, 1
+		SET A, PGRM_FLOPPY_STATUS_NOT_INSERTED
+	IFE X, 2
 		SET A, PGRM_FLOPPY_STATUS_READY
-	IFE [FLOPPY], 0xFFFF
-		SET A, PGRM_FLOPPY_STATUS_NODRIVE
 	
 	JSR add_line
 	
 	SET PC, POP
 
 :PGRM_FLOPPY_TEXT_0
-	DAT "Floppy status:", 0x0
+	DAT "Floppy status:", 0
 
 :PGRM_FLOPPY_STATUS_NODRIVE
-	DAT "No floppy drive detected.", 0x0
+	DAT "No floppy drive detected.", 0
 
 :PGRM_FLOPPY_STATUS_NOT_INSERTED
-	DAT "No floppy inserted.", 0x0
+	DAT "No floppy inserted.", 0
 
 :PGRM_FLOPPY_STATUS_READY
-	DAT "Floppy is ready.", 0x0
+	DAT "Floppy is ready.", 0

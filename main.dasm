@@ -3,8 +3,7 @@
 ; Title:   main.dasm
 ; Author:  Joshua (HellFly)
 ; Created: 2013-03-08
-; Date:    2013-03-12
-; Version: 0.0.2 a
+; Version: 0.0.3 a
 ; --------------------------------------------
 
 :main
@@ -24,22 +23,22 @@
 	SET A, TEXT_STARTUP_4
 	JSR add_line
 	
-	SET A, 0x0
-	SET B, 0x0
-	SET C, 0x0
-	SET I, 0x0
-	SET J, 0x0
-	SET X, 0x0
-	SET Y, 0x0
-	SET Z, 0x0
+	SET A, 0
+	SET B, 0
+	SET C, 0
+	SET I, 0
+	SET J, 0
+	SET X, 0
+	SET Y, 0
+	SET Z, 0
 	
 	:main_loop
 		JSR poll_keyboard
 		SET A, [MEM_KEYBOARD]
 		SET B, [DRAW_LINE]
-		IFN [A], 0x0
+		IFN [A], 0
 			SET PC, main_loop_draw
-		IFE [A], 0x0
+		IFE [A], 0
 			SET PC, main_loop_clear
 		
 		:main_loop_draw
@@ -52,11 +51,19 @@
 		SET PC, main_loop
 
 :poll_floppy
-	SET X, 0x0
+	SET X, 0
 	IFE [FLOPPY], 0xFFFF ; No floppy drive
 		SET PC, POP
-	SET X, 0x1
-	; Do floppy stuff here
+	SET A, 0
+	HWI [FLOPPY]
+	
+	IFE A, 0
+		SET X, 1
+	IFE A, 1
+		SET X, 1
+	IFE A, 2
+		SET X, 1
+	
 	SET PC, POP
 
 :poll_keyboard
@@ -74,7 +81,7 @@
 	SUB I, 1
 	:poll_keyboard_add
 		ADD I, 1
-		IFN [I], 0x0
+		IFN [I], 0
 			SET PC, poll_keyboard_add
 		SET J, [MEM_KEYBOARD]
 		ADD J, 0x20
@@ -98,11 +105,11 @@
 	:poll_keyboard_backspace
 		SET X, [MEM_KEYBOARD]
 		:poll_keyboard_backspace_loop
-			ADD X, 0x1
-			IFN [X], 0x0
+			ADD X, 1
+			IFN [X], 0
 				SET PC, poll_keyboard_backspace_loop
 		SUB X, 1
-		SET [X], 0x0
+		SET [X], 0
 		SET A, [DRAW_LINE]
 		JSR clear_line
 		SET A, [DRAW_LINE]
@@ -114,21 +121,21 @@
 	SET X, [MEM_KEYBOARD]
 	SET Y, CMD_HELP
 	JSR stdlib_strcmp
-	IFE X, 0x0
+	IFE X, 0
 		SET PC, pgrm_help
 	SET X, [MEM_KEYBOARD]
 	SET Y, CMD_FLOPPY
 	JSR stdlib_strcmp
-	IFE X, 0x0
+	IFE X, 0
 		SET PC, pgrm_floppy
 	SET PC, POP
 
 :keyboardbuffer_clear
 	SET I, [MEM_KEYBOARD]
 	:keyboardbuffer_clear_loop
-		SET [I], 0x0
-		ADD I, 0x1
-		IFN [I], 0x0
+		SET [I], 0
+		ADD I, 1
+		IFN [I], 0
 			SET PC, keyboardbuffer_clear_loop
 	SET PC, POP
 
@@ -200,8 +207,8 @@
 		IFG A, C
 			SET PC, display_scroll_clear
 		SET [A], [B]
-		ADD A, 0x1
-		ADD B, 0x1
+		ADD A, 1
+		ADD B, 1
 		SET PC, display_scroll_loop
 	:display_scroll_clear
 		SET A, [MEM_DISPLAY]
@@ -225,7 +232,7 @@
 	SET I, [MEM_KEYBOARD]
 	SET J, [MEM_DISPLAY]
 	ADD J, 0x160
-	IFE [J], 0x0
+	IFE [J], 0
 		SET PC, add_line_cont
 	IFE [DRAW_LINE], J
 		JSR display_scroll
@@ -262,12 +269,12 @@
 	SET A, [MEM_DISPLAY]
 	SET B, A
 	ADD B, 0x180
-	SUB B, 0x1
+	SUB B, 1
 	:clear_display_loop
 		IFG A, B
 			SET PC, clear_display_cont
-		SET [A], 0x0
-		ADD A, 0x1
+		SET [A], 0
+		ADD A, 1
 		SET PC, clear_display_loop
 	:clear_display_cont
 	SET [DRAW_LINE], [MEM_DISPLAY]
@@ -297,10 +304,10 @@
 	DAT 0xFFFF				; VECTOR will hold the SPED-3's index
 
 :CMD_HELP
-	DAT "help", 0x0
+	DAT "help", 0
 
 :CMD_FLOPPY
-	DAT "floppy", 0x0
+	DAT "floppy", 0
 
 :CMD_HELP_EXEC
 	JSR pgrm_help
@@ -311,15 +318,15 @@
 	SET PC, POP
 
 :TEXT_STARTUP_0
-	DAT "--------------------------------", 0x0
+	DAT "--------------------------------", 0
 :TEXT_STARTUP_1
-	DAT "|      Official Otium OS       |", 0x0
+	DAT "|      Official Otium OS       |", 0
 :TEXT_STARTUP_2
-	DAT "|         By: HellFly          |", 0x0
+	DAT "|         By: HellFly          |", 0
 :TEXT_STARTUP_3
-    DAT "|          v 0.0.2 a           |", 0x0
+    DAT "|          v 0.0.3 a           |", 0
 :TEXT_STARTUP_4
-	DAT "--------------------------------", 0x0
+	DAT "--------------------------------", 0
 
 
 .INCLUDE <pgrm_floppy.dasm>
